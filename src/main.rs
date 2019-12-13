@@ -4,10 +4,12 @@ use clap::{App, Arg};
 use log::info;
 use rdkafka::util::get_rdkafka_version;
 use crate::log_utils::*;
+use hyper::Client;
+use hyper_tls::HttpsConnector;
 
 
 #[tokio::main]
-async fn main() {
+async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let matches = App::new("www crawler")
         .about("Web crawler built with Rust and Kafka")
         .arg(
@@ -34,4 +36,12 @@ async fn main() {
     info!("welcome to rust www crawler!");
     info!("using librdkafka version: 0x{:08x}, {}", version_n, version_s);
     info!("cluster: {}", bootstrap_servers);
+
+    let https = HttpsConnector::new();
+    let client = Client::builder().build::<_, hyper::Body>(https);
+    let uri = "https://confluent.io".parse()?;
+    let resp = client.get(uri).await?;
+    println!("Response: {}", resp.status());
+
+    Ok(())
 }
