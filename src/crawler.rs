@@ -23,8 +23,8 @@ use tokio::prelude::*;
 use tokio::runtime::Runtime;
 
 lazy_static::lazy_static! {
-    static ref POSITIVE_SET: HashSet<&'static str> = vec!["happy","cheerful","contented","delighted","ecstatic","elated","glad","joyful","joyous","jubilant","lively"].into_iter().collect();
-    static ref NEGATIVE_SET: HashSet<&'static str> = vec!["sad","bitter","dismal","heartbroken","melancholy","mournful","pessimistic","somber","sorrowful","sorry","wistful"].into_iter().collect();
+    static ref POSITIVE_SET: HashSet<&'static str> = vec!["acceptable", "excellent", "exceptional", "favorable", "great", "marvelous", "satisfactory", "positive", "superb", "valuable"].into_iter().collect();
+    static ref NEGATIVE_SET: HashSet<&'static str> = vec!["atrocious", "awful", "cheap", "lousy", "dreadful", "poor", "rough", "sad", "unacceptable", "gross"].into_iter().collect();
 }
 
 pub struct Crawler<'crawler> {
