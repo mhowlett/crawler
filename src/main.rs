@@ -201,7 +201,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
                 break;
             }
 
-            futs.push(Box::pin(get_page(url, &client)));
+            futs.push(Box::pin(c.get_page(url)));
         }
 
         let mut idx = 0;
