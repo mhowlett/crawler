@@ -1,8 +1,9 @@
+mod crawler;
 mod hyper_tls;
 mod log_utils;
-mod parser;
 
 use crate::log_utils::*;
+use bloom;
 use clap::{App, Arg};
 use futures::{
     future::FutureExt, // for `.fuse()`
@@ -13,24 +14,7 @@ use hyper::Client;
 use hyper_tls::HttpsConnector;
 use log::info;
 use rdkafka::util::get_rdkafka_version;
-use tokio::prelude::*;
-use tokio::runtime::Runtime;
-
-async fn get_page(
-    url: &str,
-    client: &Client<hyper_tls::client::HttpsConnector<hyper::client::connect::HttpConnector>>,
-) -> Result<String, String> {
-    let uri = url.parse().ok().ok_or("couldnt parse url")?;
-    let mut r1 = client.get(uri).await.ok().ok_or("problem getting url")?;
-    let bs = hyper::body::to_bytes(r1.into_body())
-        .await
-        .ok()
-        .ok_or("couldn't get bytes")?;
-    let s = std::str::from_utf8(&bs)
-        .ok()
-        .ok_or("cant convert from utf8")?;
-    Ok(String::from(s))
-}
+use std::cell::RefCell;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
@@ -67,14 +51,28 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let https = HttpsConnector::new();
     let client = Client::builder().build::<_, hyper::Body>(https);
 
-    let mut futs = vec![];
-    futs.push(Box::pin(get_page("http://confluent.io", &client)));
-    futs.push(Box::pin(get_page("https://www.matthowlett.com", &client)));
-    futs.push(Box::pin(get_page("https://news.ycombinator.com", &client)));
-    futs.push(Box::pin(get_page("https://nytimes.com", &client)));
-
     let mut positive: u64 = 0;
     let mut negative: u64 = 0;
+
+    let expected_num_items = 100000;
+
+    let false_positive_rate = 0.01;
+
+    let mut filter = RefCell::new(bloom::BloomFilter::with_rate(
+        false_positive_rate,
+        expected_num_items,
+    ));
+
+    let c = crawler::Crawler {
+        client: &client,
+        filter: &filter,
+    };
+
+    let mut futs = vec![];
+    futs.push(Box::pin(c.get_page("http://confluent.io")));
+    futs.push(Box::pin(c.get_page("https://www.matthowlett.com")));
+    futs.push(Box::pin(c.get_page("https://news.ycombinator.com")));
+    futs.push(Box::pin(c.get_page("https://nytimes.com")));
 
     loop {
         let mut idx = 0;
@@ -86,7 +84,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
             idx = ff.1;
             match ff.0 {
                 Ok(r) => {
-                    let res = parser::process_webpage(r.as_str(), &mut positive, &mut negative);
+                    let res = c.process_webpage(r.as_str(), &mut positive, &mut negative);
                     for x in res {
                         println!("{}", x);
                     }
