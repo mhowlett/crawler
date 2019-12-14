@@ -1,5 +1,6 @@
-mod log_utils;
+mod crawler;
 mod hyper_tls;
+mod log_utils;
 
 extern crate log;
 extern crate clap;
@@ -33,16 +34,13 @@ use tokio::prelude::*;
 use rdkafka::message::OwnedHeaders;
 use rdkafka::producer::{FutureProducer, FutureRecord};
 
+use crate::log_utils::*;
+use bloom;
+
+use std::cell::RefCell;
+
+
 const URL_TOPIC: &str = "urls";
-
-
-async fn get_page(url: &str, client: &Client<hyper_tls::client::HttpsConnector<hyper::client::connect::HttpConnector>>) -> Result<String, String> {
-    let uri = url.parse().ok().ok_or("couldnt parse url")?;
-    let mut r1 = client.get(uri).await.ok().ok_or("problem getting url")?;
-    let bs = hyper::body::to_bytes(r1.into_body()).await.ok().ok_or("couldn't get bytes")?;
-    let s = std::str::from_utf8(&bs).ok().ok_or("cant convert from utf8")?;
-    Ok(String::from(s))
-}
 
 
 // A context can be used to change the behavior of producers and consumers by adding callbacks
@@ -135,6 +133,30 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
 
     let mut futs = vec![];
     
+    let mut positive: u64 = 0;
+    let mut negative: u64 = 0;
+
+    let expected_num_items = 100000;
+
+    let false_positive_rate = 0.01;
+
+    let mut filter = RefCell::new(bloom::BloomFilter::with_rate(
+        false_positive_rate,
+        expected_num_items,
+    ));
+
+    let c = crawler::Crawler {
+        client: &client,
+        filter: &filter,
+    };
+
+/*
+    let mut futs = vec![];
+    futs.push(Box::pin(c.get_page("http://confluent.io")));
+    futs.push(Box::pin(c.get_page("https://www.matthowlett.com")));
+    futs.push(Box::pin(c.get_page("https://news.ycombinator.com")));
+    futs.push(Box::pin(c.get_page("https://nytimes.com")));
+*/
 
     loop {
         // if we don't have max requests in flight, or we haven't reached partition eof (currently assume 1 partition only: todo fix this),
@@ -183,23 +205,29 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         }
 
         let mut idx = 0;
-        if futs.len() == 0 { break; }
+        if futs.len() == 0 {
+            break;
+        }
         {
             let ff = futures::future::select_all(futs.iter_mut()).await;
             idx = ff.1;
             match ff.0 {
                 Ok(r) => {
-                    println!("{}", r);
-                    // get page urls here.
-                    producer.send(FutureRecord::to(URL_TOPIC).payload("").key("https://news.ycombinator.com"), 0);
-                },
-                Err(_) => println!("no result")
+                    let res = c.process_webpage(r.as_str(), &mut positive, &mut negative);
+                    // producer.send(FutureRecord::to(URL_TOPIC).payload("").key("https://news.ycombinator.com"), 0);
+                    for x in res {
+                        println!("{}", x);
+                    }
+                }
+                Err(_) => println!("no result"),
             }
         }
         {
             futs.remove(idx);
         }
     }
+
+    println!("happy: {} sad: {}", positive, negative);
 
     Ok(())
 }

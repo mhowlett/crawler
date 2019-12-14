@@ -22,3 +22,6 @@ libc = "0.2.0"
 serde = { version = "1.0.0", features = ["derive"] }
 serde_derive = "1.0.0"
 serde_json = "1.0.0"
+select = "0.4.3"
+lazy_static = "1.4.0"
+bloom = "0.2.0"
