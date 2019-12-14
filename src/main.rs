@@ -144,11 +144,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
 
     // seed with hacker news.
     producer.send(FutureRecord::to(URL_TOPIC).payload("").key("https://news.ycombinator.com"), 0);
-    producer.send(FutureRecord::to(URL_TOPIC).payload("").key("https://news.ycombinator.com"), 0);
-    producer.send(FutureRecord::to(URL_TOPIC).payload("").key("https://news.ycombinator.com"), 0);
-    producer.send(FutureRecord::to(URL_TOPIC).payload("").key("https://news.ycombinator.com"), 0);
-
-//    tokio_timer::sleep(Duration::from_secs(2)).await;
 
     let mut message_stream = consumer.start().compat();
 
@@ -168,6 +163,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     futs.push(Box::pin(c.get_page("https://nytimes.com")));
 */
 
+    let mut have_one = false;
     loop {
         // if we don't have max requests in flight, or we haven't reached partition eof (currently assume 1 partition only: todo fix this),
         // then keep consuming urls to read and add get_page tasks corresponding to them. 
@@ -185,12 +181,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
                     Ok(Err(e)) => {
                         if let rdkafka::error::KafkaError::PartitionEOF(_) = e {
                             eof = true;
+                            producer.send(FutureRecord::to(URL_TOPIC).payload("").key("https://news.ycombinator.com"), 0);
                             info!("eof");
                         } else {
                             warn!("consume error");
                         }
                     },
                     Ok(Ok(msg)) => {
+                        have_one = true;
                         let message2: rdkafka::message::OwnedMessage = msg.detach();
                         match message2.key() {
                             Some(key_data) => {
@@ -207,7 +205,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
             }
 
             if eof || futs.len() >= MAX_INFLIGHT {
-                break;
+                if (have_one) {
+                    break;
+                }
             }
 
             futs.push(Box::pin(c.get_page(url)));
