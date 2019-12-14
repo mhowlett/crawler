@@ -103,6 +103,20 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let https = HttpsConnector::new();
     let client = Client::builder().build::<_, hyper::Body>(https);
 
+    let expected_num_items = 100000;
+
+    let false_positive_rate = 0.01;
+
+    let mut filter = RefCell::new(bloom::BloomFilter::with_rate(
+        false_positive_rate,
+        expected_num_items,
+    ));
+
+    let c = crawler::Crawler {
+        client: &client,
+        filter: &filter,
+    };
+
     let producer: FutureProducer = ClientConfig::new()
         .set("bootstrap.servers", bootstrap_servers)
         .set("message.timeout.ms", "5000")
@@ -136,19 +150,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let mut positive: u64 = 0;
     let mut negative: u64 = 0;
 
-    let expected_num_items = 100000;
 
-    let false_positive_rate = 0.01;
-
-    let mut filter = RefCell::new(bloom::BloomFilter::with_rate(
-        false_positive_rate,
-        expected_num_items,
-    ));
-
-    let c = crawler::Crawler {
-        client: &client,
-        filter: &filter,
-    };
 
 /*
     let mut futs = vec![];
