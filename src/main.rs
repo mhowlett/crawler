@@ -146,10 +146,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     const MAX_INFLIGHT: usize = 10;
 
     let mut futs = vec![];
+
     
     let mut positive: u64 = 0;
     let mut negative: u64 = 0;
-
 
 
 /*
@@ -169,7 +169,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         // this is a bit flawed.
         loop {
             let mut eof = false;
-            let mut url = "";
+            let mut url: String = String::from("");
 
             if let Some(message) = message_stream.next().await {
                 match message {
@@ -183,16 +183,15 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
                         }
                     },
                     Ok(Ok(msg)) => {
-                        let aaa = msg.key();
-                        let aa = match aaa {
+                        let message2: rdkafka::message::OwnedMessage = msg.detach();
+                        match message2.key() {
+                            Some(key_data) => {
+                                url = String::from_utf8(key_data.to_owned())?;
+                            }
                             None => {
                                 warn!("no key");
-                            },
-                            Some(bs) => {
-                                let b = std::str::from_utf8(&bs)?;
-                                url = b.clone();
                             }
-                        };
+                        }
                     }
                 };
             } else {

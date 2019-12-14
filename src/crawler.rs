@@ -33,9 +33,9 @@ pub struct Crawler<'crawler> {
 }
 
 impl Crawler<'_> {
-    pub async fn get_page(&self, url: &str) -> Result<String, String> {
+    pub async fn get_page(&self, url: String) -> Result<String, String> {
         if let Ok(mut filter) = self.filter.try_borrow_mut() {
-            filter.insert(&String::from(url));
+            filter.insert(&url);
         } else {
             println!("can't get filter");
         }
