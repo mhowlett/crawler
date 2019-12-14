@@ -37,6 +37,10 @@ use rdkafka::producer::{FutureProducer, FutureRecord};
 use crate::log_utils::*;
 use bloom;
 
+use std::time::Duration;
+
+
+
 use std::cell::RefCell;
 
 
@@ -140,6 +144,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
 
     // seed with hacker news.
     producer.send(FutureRecord::to(URL_TOPIC).payload("").key("https://news.ycombinator.com"), 0);
+    producer.send(FutureRecord::to(URL_TOPIC).payload("").key("https://news.ycombinator.com"), 0);
+    producer.send(FutureRecord::to(URL_TOPIC).payload("").key("https://news.ycombinator.com"), 0);
+    producer.send(FutureRecord::to(URL_TOPIC).payload("").key("https://news.ycombinator.com"), 0);
+
+//    tokio_timer::sleep(Duration::from_secs(2)).await;
 
     let mut message_stream = consumer.start().compat();
 
@@ -150,7 +159,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     
     let mut positive: u64 = 0;
     let mut negative: u64 = 0;
-
 
 /*
     let mut futs = vec![];
@@ -215,9 +223,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
             match ff.0 {
                 Ok(r) => {
                     let res = c.process_webpage(r.as_str(), &mut positive, &mut negative);
-                    // producer.send(FutureRecord::to(URL_TOPIC).payload("").key("https://news.ycombinator.com"), 0);
                     for x in res {
-                        println!("{}", x);
+                        println!("sending url: {}", x);
+                        producer.send(FutureRecord::to(URL_TOPIC).payload("").key(x.as_bytes()), 0);
                     }
                 }
                 Err(_) => println!("no result"),
