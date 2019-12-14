@@ -163,6 +163,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     futs.push(Box::pin(c.get_page("https://nytimes.com")));
 */
 
+    let mut cnt = 0;
     let mut have_one = false;
     loop {
         // if we don't have max requests in flight, or we haven't reached partition eof (currently assume 1 partition only: todo fix this),
@@ -222,9 +223,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
             idx = ff.1;
             match ff.0 {
                 Ok(r) => {
+                    cnt += 1;
+                    if cnt % 10 == 0 {
+                        println!("after {} pages, positive: {} negative: {}", cnt, positive, negative);
+                    }
                     let res = c.process_webpage(r.as_str(), &mut positive, &mut negative);
                     for x in res {
-                        println!("sending url: {}", x);
+                        // println!("sending url: {}", x);
                         producer.send(FutureRecord::to(URL_TOPIC).payload("").key(x.as_bytes()), 0);
                     }
                 }
@@ -236,7 +241,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         }
     }
 
-    println!("happy: {} sad: {}", positive, negative);
 
     Ok(())
 }
