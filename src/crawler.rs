@@ -24,7 +24,7 @@ use tokio::runtime::Runtime;
 
 lazy_static::lazy_static! {
     static ref POSITIVE_SET: HashSet<&'static str> = vec!["acceptable", "excellent", "exceptional", "favorable", "great", "marvelous", "satisfactory", "positive", "superb", "valuable"].into_iter().collect();
-    static ref NEGATIVE_SET: HashSet<&'static str> = vec!["atrocious", "awful", "cheap", "lousy", "dreadful", "poor", "rough", "sad", "unacceptable", "gross"].into_iter().collect();
+    static ref NEGATIVE_SET: HashSet<&'static str> = vec!["severe", "distressing", "cheap", "harsh", "intense", "painful", "serious", "terrible", "unacceptable", "unfortunate"].into_iter().collect();
 }
 
 pub struct Crawler<'crawler> {
